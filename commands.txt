@@ -1,0 +1,5 @@
+go mod init test
+go get github.com/gen2brain/raylib-go/raylib
+
+go build
+.\Tetris.exe
