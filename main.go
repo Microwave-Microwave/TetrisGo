@@ -61,44 +61,32 @@ func create_piece(name string, position Coordinate) (p Piece) {
 	} else {
 		p.belongs_to = "game"
 	}
+
+	var coords []int32
 	switch name {
 	case "o":
-		p.pieces[0] = Coordinate{x, y}
-		p.pieces[1] = Coordinate{x + 1, y}
-		p.pieces[2] = Coordinate{x, y + 1}
-		p.pieces[3] = Coordinate{x + 1, y + 1}
+		coords = []int32{x, y, x + 2, y, x, y + 1, x + 1, y + 1}
 	case "i":
-		p.pieces[0] = Coordinate{x, y}
-		p.pieces[1] = Coordinate{x + 1, y}
-		p.pieces[2] = Coordinate{x + 2, y}
-		p.pieces[3] = Coordinate{x + 3, y}
+		coords = []int32{x, y, x + 1, y, x + 2, y, x + 3, y}
 	case "s":
-		p.pieces[0] = Coordinate{x, y}
-		p.pieces[1] = Coordinate{x + 1, y}
-		p.pieces[2] = Coordinate{x + 1, y + 1}
-		p.pieces[3] = Coordinate{x + 2, y + 1}
+		coords = []int32{x, y, x + 1, y, x + 1, y + 1, x + 2, y + 1}
 	case "z":
-		p.pieces[0] = Coordinate{x, y + 1}
-		p.pieces[1] = Coordinate{x + 1, y + 1}
-		p.pieces[2] = Coordinate{x + 1, y}
-		p.pieces[3] = Coordinate{x + 2, y}
+		coords = []int32{x, y + 1, x + 1, y + 1, x + 1, y, x + 2, y}
 	case "l":
-		p.pieces[0] = Coordinate{x, y}
-		p.pieces[1] = Coordinate{x, y}
-		p.pieces[2] = Coordinate{x, y}
-		p.pieces[3] = Coordinate{x, y}
+		coords = []int32{x, y, x, y, x, y, x, y}
 	case "j":
-		p.pieces[0] = Coordinate{x, y}
-		p.pieces[1] = Coordinate{x, y + 1}
-		p.pieces[2] = Coordinate{x, y + 2}
-		p.pieces[3] = Coordinate{x + 1, y}
+		coords = []int32{x, y, x, y + 1, x, y + 2, x + 1, y}
 	case "t":
-		p.pieces[0] = Coordinate{x, y + 1}
-		p.pieces[1] = Coordinate{x + 1, y + 1}
-		p.pieces[2] = Coordinate{x + 2, y + 1}
-		p.pieces[3] = Coordinate{x + 1, y}
+		coords = []int32{x, y + 1, x + 1, y + 1, x + 2, y + 1, x + 1, y}
 	default:
 		fmt.Println("ERROR")
+		return p
+	}
+
+	if len(coords) == p.count*2 {
+		for i := 0; i < p.count; i++ {
+			p.pieces[i] = Coordinate{x: coords[i*2], y: coords[i*2+1]}
+		}
 	}
 	return p
 }
