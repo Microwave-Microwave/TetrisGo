@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"time"
 
 	rl "github.com/gen2brain/raylib-go/raylib"
 )
@@ -42,10 +43,11 @@ type Game struct {
 // ----------------------   Pieces and Player   --------------------------//
 // -----------------------------------------------------------------------//
 type Piece struct {
-	name   string
-	center Coordinate
-	count  int
-	pieces [4]Coordinate
+	name       string
+	center     Coordinate
+	count      int
+	pieces     [4]Coordinate
+	belongs_to string
 }
 
 func create_piece(name string, position Coordinate) (p Piece) {
@@ -53,6 +55,12 @@ func create_piece(name string, position Coordinate) (p Piece) {
 	p.center = position
 	p.count = 4
 	x, y := position.x, position.y
+	if len(name) > 1 {
+		name = name[0:1]
+		p.belongs_to = "player"
+	} else {
+		p.belongs_to = "game"
+	}
 	switch name {
 	case "o":
 		p.pieces[0] = Coordinate{x, y}
@@ -95,12 +103,18 @@ func create_piece(name string, position Coordinate) (p Piece) {
 	return p
 }
 
-type Matrix[T any] struct {
-	w, h int
-	data []T
+func matrix_rotation_executer(rotated_matrix *[6][6]int, matrix *[6][6]int, times int, x int, y int) {
+	switch times {
+	case 1:
+		(*rotated_matrix)[x][y] = (*matrix)[5-y][x]
+	case 2:
+		(*rotated_matrix)[x][y] = (*matrix)[5-x][5-y]
+	case 3:
+		(*rotated_matrix)[5-y][x] = (*matrix)[x][y]
+	}
 }
 
-func rotate_matrix(matrix [6][6]int) {
+func rotate_matrix(matrix [6][6]int, times int) {
 	var rotated_matrix [6][6]int
 
 	for y := 0; y < 6; y++ {
@@ -109,18 +123,14 @@ func rotate_matrix(matrix [6][6]int) {
 		}
 	}
 
-	for x in range(0, 6):
-	for y in range(0, 6):
-	    #2x right
-	    rotated_matrix[x][y] = matrix[5-x][5-y]
-	    #right
-	    rotated_matrix[x][y] = matrix[5-y][x]
-	    #left
-	    rotated_matrix[5-y][x] = matrix[x][y]
-
+	for x := 0; x < 6; x++ {
+		for y := 0; y < 6; y++ {
+			matrix_rotation_executer(&rotated_matrix, &matrix, times, x, y)
+		}
+	}
 }
 
-func rotate_piece(piece *Piece) {
+func rotate_piece(piece *Piece, times int) {
 	//6x6 empty matrix
 	var matrix [6][6]int
 	for x := 0; x < 6; x++ {
@@ -139,22 +149,38 @@ func rotate_piece(piece *Piece) {
 		matrix[cell.x-origin.x][cell.y-origin.y] = 1
 	}
 
+	rotate_matrix(matrix, times)
+
 }
 
 func fix_rotation(game *Game, piece *Piece) {
 	//TODO
 }
 
-func spawn_piece(game *Game, name string, position Coordinate, rotation int) {
-	var piece = create_piece(name, position)
-	rotate_piece(&piece)
-	fix_rotation(game, &piece)
+func update_board(game *Game) {
+	for i := 0; i < 4; i++ {
+		piece := game.pieces[len(game.pieces)-1]
+		cell := piece.pieces[i]
+		game.board.grid[cell.x][cell.y].color = rl.Red
+
+	}
+
 }
 
+func spawn_piece(game *Game, name string, position Coordinate, rotation int) {
+	var piece = create_piece(name, position)
+	//rotate_piece(&piece, rotation)
+	fix_rotation(game, &piece)
+
+	game.pieces = append(game.pieces, piece)
+	update_board(game)
+}
+
+/*
 type Player struct {
 	piece Piece
 }
-
+*/
 // -----------------------------------------------------------------------//
 func new_cell(entity_type string, color rl.Color) Cell {
 	return Cell{
@@ -345,20 +371,51 @@ func draw_arena(game *Game) {
 	draw_board(game, 0)
 }
 
-func draw_entities(game *Game) {
-	draw_board(game, 1)
+func get_player_piece(pieces *[]Piece) int {
+	for i := 0; i < len(*pieces); i++ {
+		if (*pieces)[i].belongs_to == "player" {
+			return i
+		}
+	}
+	return 999999999
 }
 
-func draw_player(game *Game) {
-	draw_board(game, 2)
+func remove_from_board(board *Board, p Piece) {
+	for i := 0; i < 4; i++ {
+		cell := p.pieces[i]
+		restore_background := new_cell_with_style("background", rl.White, "bordered")
+		(*board).grid[cell.x][cell.y] = restore_background
+	}
+}
+
+func manage_input(game *Game, key_presses *map[int32]int64) {
+	var key_repeat_time int64 = 200
+
+	key_pressed := rl.GetKeyPressed()
+	now := time.Now().UnixMilli()
+	if (*key_presses)[key_pressed] <= now {
+		switch key_pressed {
+		case rl.KeyRight:
+			piece_index := get_player_piece(&game.pieces)
+			var piece_pointer *Piece = &game.pieces[piece_index]
+			if (*piece_pointer).center.x < game.pars.play_area.x {
+				(*piece_pointer).center.x += 1
+				spawn_piece(game, (*piece_pointer).name+"_player", (*piece_pointer).center, 0)
+				remove_from_board(&game.board, *piece_pointer)
+				game.pieces = append(game.pieces[0:piece_index], game.pieces[piece_index:len(game.pieces)-1]...)
+				fmt.Println("moved right")
+			}
+			(*key_presses)[key_pressed] = now + key_repeat_time
+		case rl.KeyLeft:
+		}
+	}
 }
 
 func game_loop(game *Game) {
-
+	key_presses := make(map[int32]int64)
 	for !rl.WindowShouldClose() {
 		draw_arena(game)
-		draw_entities(game)
-		draw_player(game)
+		manage_input(game, &key_presses)
 	}
 }
 
@@ -370,6 +427,7 @@ func main() {
 	game.board.print()
 
 	window_setup(&game)
+	spawn_piece(&game, "j_player", Coordinate{4, 4}, 0)
 	game_loop(&game)
 	defer rl.CloseWindow()
 }
